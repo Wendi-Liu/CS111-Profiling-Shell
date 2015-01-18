@@ -27,7 +27,7 @@
 
 
 
-command_stream_t parse_command(int (*get_next_byte) (void *),
+command_t parse_command(int (*get_next_byte) (void *),
          void *get_next_byte_argument)
 {
   char c;
@@ -35,10 +35,9 @@ command_stream_t parse_command(int (*get_next_byte) (void *),
   int i = 0;
   int word_count = 0; //for simple command;
   char prev_white_space = '\n';
-  command_stream_t cmd_stream = (command_stream_t) checked_malloc (sizeof(struct command_stream));
-  cmd_stream->cmd = (command_t ) checked_malloc (sizeof(struct command));
-  cmd_stream->cmd->type = UNKNOWN;
-  cmd_stream->next = NULL;
+  command_t cmd = (command_t ) checked_malloc (sizeof(struct command));
+  cmd->type = UNKNOWN;
+
   while((c = get_next_byte(get_next_byte_argument)) != EOF)
   {
     if((i < 255) && (c != '\n') && (c != ' ') && (c != '\t') && (c != '<') && (c != '>') && (c != ';') && (c != '|'))
@@ -49,78 +48,85 @@ command_stream_t parse_command(int (*get_next_byte) (void *),
       if(i == 0){ //several white spaces in sequence
         if(c == '\n'){
           prev_white_space = c;
-          if(cmd_stream->cmd->type == SIMPLE_COMMAND)
-            return cmd_stream;
+          if(cmd->type == SIMPLE_COMMAND)
+            return cmd;
         }
         continue;
       }
       token[i] = '\0';
-      printf("%s\n", token);
       //A new token is fetched
-      if(token == "if" && cmd_stream->cmd->type == UNKNOWN){
-        cmd_stream->cmd->type = IF_COMMAND;
-        cmd_stream->cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
+      if(token == "if" && cmd->type == UNKNOWN){
+        cmd->type = IF_COMMAND;
+        cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
-      if(token == "until" && cmd_stream->cmd->type == UNKNOWN){
-        cmd_stream->cmd->type = UNTIL_COMMAND;
-        cmd_stream->cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
+      if(token == "until" && cmd->type == UNKNOWN){
+        cmd->type = UNTIL_COMMAND;
+        cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
-      if(token == "while" && cmd_stream->cmd->type == UNKNOWN){
-        cmd_stream->cmd->type = WHILE_COMMAND;
-        cmd_stream->cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
-        i = 0;
-        continue;
-      }
-
-
-      if(token == "then" && cmd_stream->cmd->type == IF_COMMAND){
-        cmd_stream->cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
-        i = 0;
-        continue;
-      }
-      if(token == "else" && cmd_stream->cmd->type == IF_COMMAND){
-        cmd_stream->cmd->u.command[2] = parse_command(get_next_byte, get_next_byte_argument);
-        i = 0;
-        continue;
-      }
-      if(token == "do" && (cmd_stream->cmd->type == WHILE_COMMAND || cmd_stream->cmd->type == UNTIL_COMMAND)){
-        cmd_stream->cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
+      if(token == "while" && cmd->type == UNKNOWN){
+        cmd->type = WHILE_COMMAND;
+        cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
 
 
-      if(cmd_stream->cmd->type == UNKNOWN){
-        cmd_stream->cmd->type = SIMPLE_COMMAND;
-        cmd_stream->cmd->u.word = (char **) checked_malloc(sizeof(char *));
-        cmd_stream->cmd->u.word[0] = (char *) checked_malloc(strlen(token) + 1);
-        strcpy(cmd_stream->cmd->u.word[0], token);
-        word_count++;
+      if(token == "then" && cmd->type == IF_COMMAND){
+        cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
+        i = 0;
+        continue;
+      }
+      if(token == "else" && cmd->type == IF_COMMAND){
+        cmd->u.command[2] = parse_command(get_next_byte, get_next_byte_argument);
+        i = 0;
+        continue;
+      }
+      if(token == "do" && (cmd->type == WHILE_COMMAND || cmd->type == UNTIL_COMMAND)){
+        cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
 
-      if(token == "fi" && cmd_stream->cmd->type == IF_COMMAND){
-        return cmd_stream;
+      if(token == "fi" && cmd->type == IF_COMMAND){
+        return cmd;
       }
-      if(token == "done" && (cmd_stream->cmd->type == WHILE_COMMAND || cmd_stream->cmd->type == UNTIL_COMMAND)){
-        return cmd_stream;
+      if(token == "done" && (cmd->type == WHILE_COMMAND || cmd->type == UNTIL_COMMAND)){
+        return cmd;
       }
 
-
-      cmd_stream->cmd->u.word = (char **) checked_realloc(cmd_stream->cmd->u.word, (word_count + 1) * sizeof(char *));
-      cmd_stream->cmd->u.word[word_count] = (char *) checked_malloc(strlen(token) + 1);
-      strcpy(cmd_stream->cmd->u.word[word_count++], token);
-      if(c == '\n' && cmd_stream->cmd->type == SIMPLE_COMMAND){
-        cmd_stream->cmd->u.word = (char **) checked_realloc(cmd_stream->cmd->u.word, (word_count + 1) * sizeof(char *));
-        cmd_stream->cmd->u.word[word_count] = (char *) checked_malloc(1);
-        cmd_stream->cmd->u.word[word_count++] = "";        
-        return cmd_stream;
+      //simple command
+      if(cmd->type == UNKNOWN){
+        cmd->type = SIMPLE_COMMAND;
       }
+
+      if(cmd->type == SIMPLE_COMMAND){
+        cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
+        cmd->u.word[word_count] = (char *) checked_malloc(strlen(token) + 1);
+        strcpy(cmd->u.word[word_count++], token);
+      }
+      if(c == '\n' && cmd->type == SIMPLE_COMMAND){
+        cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
+        //cmd->u.word[word_count] = (char *) checked_malloc(1);
+        cmd->u.word[word_count] = NULL;        
+        return cmd;
+      }
+
+      //pipeline
+      if((c == '|' || c == ';') && cmd->type == SIMPLE_COMMAND){
+        cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
+        cmd->u.word[word_count] = NULL; 
+        command_t sub_cmd = cmd;
+        cmd = (command_t ) checked_malloc (sizeof(struct command));
+        cmd->type = (c == '|') ? PIPE_COMMAND : SEQUENCE_COMMAND;
+        cmd->u.command[0] = sub_cmd;
+        cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
+        return cmd;
+      }
+
       //reset for next token
       prev_white_space = c;
       i = 0;
@@ -142,7 +148,12 @@ make_command_stream (int (*get_next_byte) (void *),
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
   command_stream_t cmd_stream = NULL, cmd_stream_prev = NULL, head = NULL;
-  while((cmd_stream = parse_command(get_next_byte, get_next_byte_argument)) != NULL){
+  command_t cmd;
+  while((cmd = parse_command(get_next_byte, get_next_byte_argument)) != NULL){
+
+    cmd_stream = (command_stream_t) checked_malloc (sizeof(struct command_stream));
+    cmd_stream->cmd = cmd;
+    cmd_stream->next = NULL;
     if(cmd_stream_prev == NULL)
       head = cmd_stream;
     else
@@ -160,6 +171,7 @@ read_command_stream (command_stream_t s)
     return NULL;
   command_t cmd_t = s->cmd;
   command_stream_t s_prev = s;
+
   if(s->next){
     s->cmd = s->next->cmd;
     s->next = s->next->next;
