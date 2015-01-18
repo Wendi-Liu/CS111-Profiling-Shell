@@ -40,7 +40,7 @@ command_t parse_command(int (*get_next_byte) (void *),
 
   while((c = get_next_byte(get_next_byte_argument)) != EOF)
   {
-    if((i < 255) && (c != '\n') && (c != ' ') && (c != '\t') && (c != '<') && (c != '>') && (c != ';') && (c != '|'))
+    if((i < 255) && (c != '\n') && (c != ' ') && (c != '\t') && (c != '<') && (c != '>') && (c != ';') && (c != '|') && (c != '(') && (c != ')'))
     {
       token[i++] = c;
     }
@@ -48,7 +48,7 @@ command_t parse_command(int (*get_next_byte) (void *),
       if(i == 0 && (c == '\n' || c == '\t' || c == ' ')){ //several white spaces in sequence
         if(c == '\n'){
           prev_white_space = c;
-          if(cmd->type == SIMPLE_COMMAND)
+          if(cmd->type == SIMPLE_COMMAND || cmd->type == SUBSHELL_COMMAND)
             return cmd;
         }
         continue;
@@ -98,6 +98,15 @@ command_t parse_command(int (*get_next_byte) (void *),
         return cmd;
       }
 
+      //subshell command
+      if(cmd->type == UNKNOWN && c == '('){
+        cmd->type = SUBSHELL_COMMAND;
+        cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
+        i = 0;
+        continue;
+      }
+
+
       //simple command
       if(cmd->type == UNKNOWN){
         cmd->type = SIMPLE_COMMAND;
@@ -134,7 +143,7 @@ command_t parse_command(int (*get_next_byte) (void *),
         char io[256];
         int j = 0;
         char c2;
-        while(((c2 = get_next_byte(get_next_byte_argument)) != ' ' && c2 != '\t' && c2 != '\n') || j == 0){
+        while(((c2 = get_next_byte(get_next_byte_argument)) != ' ' && c2 != '\t' && c2 != '\n' && c2 != ')') || j == 0){
           if(c2 != ' ' && c2 != '\t')
             io[j++] = c2;
         }
@@ -147,9 +156,18 @@ command_t parse_command(int (*get_next_byte) (void *),
           cmd->output = (char *) checked_malloc(strlen(io) + 1);
           strcpy(cmd->output, io);
         }
-        if(c2 == '\n') 
+        if(c2 == '\n' || c2 == ')') 
           return cmd;
           
+      }
+
+      //subshell command return
+      if(c == ')'){
+        if(cmd->type == SIMPLE_COMMAND){
+          cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
+          cmd->u.word[word_count] = NULL;
+        } 
+        return cmd;
       }
 
       //reset for next token

@@ -1,1 +1,1 @@
-cat a.sh > b.sh < a.sh
+(cat<a.sh)
