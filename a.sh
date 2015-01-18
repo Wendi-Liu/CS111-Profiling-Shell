@@ -1,5 +1,1 @@
-x=100
-while [ $x -gt 0 ]
-do
-    echo $x;    x=$(($x-1))
-done
+cat a.sh > b.sh < a.sh

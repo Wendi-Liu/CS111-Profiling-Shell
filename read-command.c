@@ -45,7 +45,7 @@ command_t parse_command(int (*get_next_byte) (void *),
       token[i++] = c;
     }
     else{
-      if(i == 0){ //several white spaces in sequence
+      if(i == 0 && (c == '\n' || c == '\t' || c == ' ')){ //several white spaces in sequence
         if(c == '\n'){
           prev_white_space = c;
           if(cmd->type == SIMPLE_COMMAND)
@@ -103,7 +103,7 @@ command_t parse_command(int (*get_next_byte) (void *),
         cmd->type = SIMPLE_COMMAND;
       }
 
-      if(cmd->type == SIMPLE_COMMAND){
+      if(cmd->type == SIMPLE_COMMAND && i != 0){
         cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
         cmd->u.word[word_count] = (char *) checked_malloc(strlen(token) + 1);
         strcpy(cmd->u.word[word_count++], token);
@@ -125,6 +125,31 @@ command_t parse_command(int (*get_next_byte) (void *),
         cmd->u.command[0] = sub_cmd;
         cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
         return cmd;
+      }
+
+      //redirection
+      if(c == '<' || c == '>'){
+        cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
+        cmd->u.word[word_count] = NULL; 
+        char io[256];
+        int j = 0;
+        char c2;
+        while(((c2 = get_next_byte(get_next_byte_argument)) != ' ' && c2 != '\t' && c2 != '\n') || j == 0){
+          if(c2 != ' ' && c2 != '\t')
+            io[j++] = c2;
+        }
+        io[j] = '\0';
+        if(c == '<'){
+          cmd->input = (char *) checked_malloc(strlen(io) + 1);
+          strcpy(cmd->input, io);
+        }
+        else{
+          cmd->output = (char *) checked_malloc(strlen(io) + 1);
+          strcpy(cmd->output, io);
+        }
+        if(c2 == '\n') 
+          return cmd;
+          
       }
 
       //reset for next token
