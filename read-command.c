@@ -55,19 +55,19 @@ command_t parse_command(int (*get_next_byte) (void *),
       }
       token[i] = '\0';
       //A new token is fetched
-      if(token == "if" && cmd->type == UNKNOWN){
+      if(strcmp(token, "if") == 0 && cmd->type == UNKNOWN){
         cmd->type = IF_COMMAND;
         cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
-      if(token == "until" && cmd->type == UNKNOWN){
+      if(strcmp(token, "until") == 0 && cmd->type == UNKNOWN){
         cmd->type = UNTIL_COMMAND;
         cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
-      if(token == "while" && cmd->type == UNKNOWN){
+      if(strcmp(token, "while") == 0 && cmd->type == UNKNOWN){
         cmd->type = WHILE_COMMAND;
         cmd->u.command[0] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
@@ -75,26 +75,26 @@ command_t parse_command(int (*get_next_byte) (void *),
       }
 
 
-      if(token == "then" && cmd->type == IF_COMMAND){
+      if(strcmp(token, "then") == 0 && cmd->type == IF_COMMAND){
         cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
-      if(token == "else" && cmd->type == IF_COMMAND){
+      if(strcmp(token, "else") == 0 && cmd->type == IF_COMMAND){
         cmd->u.command[2] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
-      if(token == "do" && (cmd->type == WHILE_COMMAND || cmd->type == UNTIL_COMMAND)){
+      if(strcmp(token, "do") == 0 && (cmd->type == WHILE_COMMAND || cmd->type == UNTIL_COMMAND)){
         cmd->u.command[1] = parse_command(get_next_byte, get_next_byte_argument);
         i = 0;
         continue;
       }
 
-      if(token == "fi" && cmd->type == IF_COMMAND){
+      if(strcmp(token, "fi") == 0 && cmd->type == IF_COMMAND){
         return cmd;
       }
-      if(token == "done" && (cmd->type == WHILE_COMMAND || cmd->type == UNTIL_COMMAND)){
+      if(strcmp(token, "done") == 0 && (cmd->type == WHILE_COMMAND || cmd->type == UNTIL_COMMAND)){
         return cmd;
       }
 
@@ -115,7 +115,7 @@ command_t parse_command(int (*get_next_byte) (void *),
         return cmd;
       }
 
-      //pipeline
+      //pipeline & sequence
       if((c == '|' || c == ';') && cmd->type == SIMPLE_COMMAND){
         cmd->u.word = (char **) checked_realloc(cmd->u.word, (word_count + 1) * sizeof(char *));
         cmd->u.word[word_count] = NULL; 
