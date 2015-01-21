@@ -1,1 +1,1 @@
-(cat<a.sh)
+ls -a
