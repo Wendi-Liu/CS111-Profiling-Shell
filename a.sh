@@ -1,1 +1,1 @@
-ls -a
+cat test.in|grep be
